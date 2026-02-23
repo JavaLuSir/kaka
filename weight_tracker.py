@@ -5,6 +5,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 DATA_FILE = 'weight_records.json'
+PER_PAGE = 10
 
 # HTML 模板
 HTML_TEMPLATE = '''
@@ -59,6 +60,45 @@ HTML_TEMPLATE = '''
             height: 300px;
             margin-bottom: 20px;
         }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+        .pagination button {
+            width: auto;
+            padding: 8px 14px;
+            background: #667eea;
+        }
+        .pagination button:hover { background: #5568d3; }
+        .pagination button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .pagination .page-info {
+            display: flex;
+            align-items: center;
+            color: #666;
+            font-size: 14px;
+        }
+        .stat-card {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #999;
+        }
     </style>
 </head>
 <body>
@@ -83,31 +123,54 @@ HTML_TEMPLATE = '''
         </div>
     </div>
 
+    <div class="card">
+        <h2>📊 数据统计</h2>
+        <div class="stat-card">
+            <div class="stat-item">
+                <div class="stat-value" id="totalCount">-</div>
+                <div class="stat-label">总记录数</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="avgWeight">-</div>
+                <div class="stat-label">平均体重 (kg)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="latestWeight">-</div>
+                <div class="stat-label">最新体重 (kg)</div>
+            </div>
+        </div>
+    </div>
+
     <div class="records">
         <h2>📋 记录历史</h2>
         <div id="recordsList"></div>
+        <div class="pagination" id="pagination"></div>
     </div>
 
     <script>
         let chart = null;
+        let currentPage = 1;
+        let totalPages = 1;
         
         // 设置默认日期为今天
         document.getElementById('date').valueAsDate = new Date();
 
-        function loadRecords() {
-            fetch('/api/records')
+        function loadRecords(page = 1) {
+            currentPage = page;
+            fetch('/api/records?page=' + page)
                 .then(r => r.json())
                 .then(data => {
-                    // 更新列表
                     const list = document.getElementById('recordsList');
-                    if (data.length === 0) {
+                    if (data.records.length === 0) {
                         list.innerHTML = '<div class="empty">暂无记录</div>';
+                        document.getElementById('pagination').innerHTML = '';
                         updateChart([]);
+                        updateStats(null);
                         return;
                     }
-                    // 按日期倒序排列（用于显示列表）
-                    const sortedData = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
-                    list.innerHTML = sortedData.map(r => `
+                    
+                    // 更新列表
+                    list.innerHTML = data.records.map(r => `
                         <div class="record-item">
                             <div>
                                 <div class="record-date">${r.date}</div>
@@ -120,10 +183,57 @@ HTML_TEMPLATE = '''
                         </div>
                     `).join('');
                     
-                    // 更新图表（按日期正序）
-                    const chartData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
-                    updateChart(chartData);
+                    // 更新分页
+                    totalPages = data.totalPages;
+                    renderPagination();
+                    
+                    // 更新统计
+                    updateStats(data);
+                    
+                    // 更新图表（使用所有数据）
+                    fetch('/api/records?page=1&per_page=1000')
+                        .then(r => r.json())
+                        .then(allData => {
+                            const sortedData = allData.records.sort((a, b) => new Date(a.date) - new Date(b.date));
+                            updateChart(sortedData);
+                        });
                 });
+        }
+
+        function renderPagination() {
+            const pagination = document.getElementById('pagination');
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+            
+            let html = `<button ${currentPage === 1 ? 'disabled' : ''} onclick="loadRecords(1)">首页</button>`;
+            html += `<button ${currentPage === 1 ? 'disabled' : ''} onclick="loadRecords(${currentPage - 1})">上一页</button>`;
+            html += `<span class="page-info">${currentPage} / ${totalPages}</span>`;
+            html += `<button ${currentPage === totalPages ? 'disabled' : ''} onclick="loadRecords(${currentPage + 1})">下一页</button>`;
+            html += `<button ${currentPage === totalPages ? 'disabled' : ''} onclick="loadRecords(${totalPages})">末页</button>`;
+            
+            pagination.innerHTML = html;
+        }
+
+        function updateStats(data) {
+            if (!data || data.records.length === 0) {
+                document.getElementById('totalCount').textContent = '-';
+                document.getElementById('avgWeight').textContent = '-';
+                document.getElementById('latestWeight').textContent = '-';
+                return;
+            }
+            
+            const total = data.total;
+            const weights = data.records.map(r => r.weight);
+            const avg = (weights.reduce((a, b) => a + b, 0) / weights.length).toFixed(1);
+            
+            // 最新体重（当前页的第一条，因为是倒序）
+            const latest = data.records[0].weight;
+            
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('avgWeight').textContent = avg;
+            document.getElementById('latestWeight').textContent = latest;
         }
 
         function updateChart(data) {
@@ -183,7 +293,7 @@ HTML_TEMPLATE = '''
               .then(data => {
                   if (data.success) {
                       document.getElementById('weight').value = '';
-                      loadRecords();
+                      loadRecords(1);
                   }
               });
         }
@@ -193,7 +303,7 @@ HTML_TEMPLATE = '''
             fetch('/api/records/' + id, {method: 'DELETE'})
                 .then(r => r.json())
                 .then(data => {
-                    if (data.success) loadRecords();
+                    if (data.success) loadRecords(currentPage);
                 });
         }
 
@@ -222,7 +332,28 @@ def index():
 
 @app.route('/api/records', methods=['GET'])
 def get_records():
-    return jsonify(load_records())
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', PER_PAGE, type=int)
+    
+    all_records = load_records()
+    
+    # 按日期倒序排列
+    all_records.sort(key=lambda x: x['date'], reverse=True)
+    
+    total = len(all_records)
+    total_pages = (total + per_page - 1) // per_page
+    
+    start = (page - 1) * per_page
+    end = start + per_page
+    records = all_records[start:end]
+    
+    return jsonify({
+        'records': records,
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'totalPages': total_pages
+    })
 
 @app.route('/api/records', methods=['POST'])
 def add_record():
