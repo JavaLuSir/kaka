@@ -14,6 +14,7 @@ HTML_TEMPLATE = '''
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>体重记录</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
@@ -22,6 +23,7 @@ HTML_TEMPLATE = '''
             background: #f5f5f5;
         }
         h1 { text-align: center; color: #333; margin-bottom: 30px; }
+        h2 { color: #333; margin-bottom: 16px; font-size: 18px; }
         .card {
             background: white; border-radius: 12px; padding: 24px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px;
@@ -52,6 +54,11 @@ HTML_TEMPLATE = '''
             background: #ff4757; padding: 6px 12px; font-size: 14px; width: auto;
         }
         .delete-btn:hover { background: #ff3344; }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -69,12 +76,21 @@ HTML_TEMPLATE = '''
         <button onclick="addRecord()">记录体重</button>
     </div>
 
+    <div class="card">
+        <h2>📈 体重趋势</h2>
+        <div class="chart-container">
+            <canvas id="weightChart"></canvas>
+        </div>
+    </div>
+
     <div class="records">
-        <h2>记录历史</h2>
+        <h2>📋 记录历史</h2>
         <div id="recordsList"></div>
     </div>
 
     <script>
+        let chart = null;
+        
         // 设置默认日期为今天
         document.getElementById('date').valueAsDate = new Date();
 
@@ -82,14 +98,16 @@ HTML_TEMPLATE = '''
             fetch('/api/records')
                 .then(r => r.json())
                 .then(data => {
+                    // 更新列表
                     const list = document.getElementById('recordsList');
                     if (data.length === 0) {
                         list.innerHTML = '<div class="empty">暂无记录</div>';
+                        updateChart([]);
                         return;
                     }
-                    // 按日期倒序排列
-                    data.sort((a, b) => new Date(b.date) - new Date(a.date));
-                    list.innerHTML = data.map(r => `
+                    // 按日期倒序排列（用于显示列表）
+                    const sortedData = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
+                    list.innerHTML = sortedData.map(r => `
                         <div class="record-item">
                             <div>
                                 <div class="record-date">${r.date}</div>
@@ -101,7 +119,51 @@ HTML_TEMPLATE = '''
                             </div>
                         </div>
                     `).join('');
+                    
+                    // 更新图表（按日期正序）
+                    const chartData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
+                    updateChart(chartData);
                 });
+        }
+
+        function updateChart(data) {
+            const ctx = document.getElementById('weightChart').getContext('2d');
+            const labels = data.map(r => r.date);
+            const weights = data.map(r => r.weight);
+            
+            if (chart) {
+                chart.destroy();
+            }
+            
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '体重 (kg)',
+                        data: weights,
+                        borderColor: '#4CAF50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 5,
+                        pointBackgroundColor: '#4CAF50'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: '体重 (kg)'
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         function addRecord() {
