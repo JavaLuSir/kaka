@@ -15,6 +15,10 @@ HTML_TEMPLATE = '''
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>体重记录</title>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -31,9 +35,14 @@ HTML_TEMPLATE = '''
         }
         .form-group { margin-bottom: 16px; }
         label { display: block; margin-bottom: 8px; color: #666; }
-        input[type="number"], input[type="date"] {
+        input[type="number"] {
             width: 100%; padding: 12px; border: 1px solid #ddd;
             border-radius: 8px; font-size: 16px;
+        }
+        .date-input {
+            width: 100%; padding: 12px; border: 1px solid #ddd;
+            border-radius: 8px; font-size: 16px;
+            background: white;
         }
         button {
             width: 100%; padding: 14px; background: #4CAF50;
@@ -107,7 +116,7 @@ HTML_TEMPLATE = '''
     <div class="card">
         <div class="form-group">
             <label>日期</label>
-            <input type="date" id="date" required>
+            <input type="text" id="date" class="date-input" required>
         </div>
         <div class="form-group">
             <label>体重 (kg)</label>
@@ -152,8 +161,12 @@ HTML_TEMPLATE = '''
         let currentPage = 1;
         let totalPages = 1;
         
-        // 设置默认日期为今天
-        document.getElementById('date').valueAsDate = new Date();
+        // 初始化中文日期选择器
+        flatpickr("#date", {
+            locale: "zh",
+            dateFormat: "Y-m-d",
+            defaultDate: new Date()
+        });
 
         function loadRecords(page = 1) {
             currentPage = page;
