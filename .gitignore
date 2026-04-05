@@ -201,6 +201,23 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Cloudflare Workers
+node_modules/
+*.log
+
+# Local config (contains sensitive KV IDs)
+wrangler.toml
+!wrangler.toml.example
+
+# npm/yarn lock
+package-lock.json
+
+# Temporary scripts
+migrate*.mjs
+migrate*.cjs
+claude.bat
+get-account.mjs
+
 # Marimo
 marimo/_static/
 marimo/_lsp/

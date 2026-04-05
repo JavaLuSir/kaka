@@ -1,0 +1,6 @@
+name = "kaka-weight-tracker"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "WEIGHT_KV"
+id = "你的KV_ID"
