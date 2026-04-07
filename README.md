@@ -1,77 +1,54 @@
-# 体重记录器 (Cloudflare Workers 版)
+# Kaka Weight Tracker
 
-一个简单的体重记录 Web 应用，支持记录、查看历史数据和趋势分析。
+一个基于 Cloudflare Pages 的体重记录应用，使用 KV 存储数据。
 
-## 功能特性
+## 功能
 
-- 📝 记录每日体重
-- 📈 折线图展示体重趋势
-- 📊 数据统计（总记录数、平均体重、最新体重）
-- 📑 历史记录分页浏览（每页 10 条）
-- 💾 数据存储在 Cloudflare KV，无需数据库
+- 记录每日体重
+- 查看体重趋势图表
+- 数据统计（总记录数、平均体重、最新体重）
+- 分页浏览历史记录
+- 删除记录
 
-## 环境要求
+## 部署
 
-- Node.js 18+
-- npm
-
-## 安装依赖
+1. 创建 Cloudflare Pages 项目
+2. 绑定 KV 命名空间（创建名为 `WEIGHT_KV` 的 KV）
+3. 配置 `wrangler.toml`（参考 `wrangler.toml.example`）
+4. 部署：
 
 ```bash
 npm install
+npx wrangler pages deploy .
 ```
 
 ## 配置
 
-1. 复制 `wrangler.toml.example` 为 `wrangler.toml`：
-```bash
-cp wrangler.toml.example wrangler.toml
+复制 `wrangler.toml.example` 为 `wrangler.toml`，填入你的 KV 命名空间 ID：
+
+```toml
+compatibility_date = "2024-01-01"
+name = "kaka-weight-tracker"
+pages_build_output_dir = "public"
+
+[[kv_namespaces]]
+binding = "WEIGHT_KV"
+id = "你的 KV 命名空间 ID"
 ```
 
-2. 在 Cloudflare Dashboard 创建 KV 命名空间：
-   - 进入 Workers → KV → 创建命名空间
-   - 复制命名空间 ID
-   - 粘贴到 `wrangler.toml` 的 `id` 位置
-
-3. 登录 Cloudflare：
-```bash
-npx wrangler login
-```
-
-## 开发
-
-```bash
-npm run dev
-```
-
-## 部署
-
-```bash
-npm run deploy
-```
-
-## 数据迁移
-
-如果要从 Python 版本迁移数据，将现有 `weight_records.json` 内容复制到 KV 中：
-
-```bash
-# 方法1: 使用 wrangler 命令行
-npx wrangler kv:key put weight_records "$(cat weight_records.json)" --namespace-id=你的KV_ID
-
-# 方法2: 通过 API
-curl -X PUT "https://api.cloudflare.com/client/v4/accounts/你的ACCOUNT_ID/storage/kv/namespaces/你的KV_ID/keys/weight_records" \
-  -H "Authorization: Bearer 你的API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d "$(cat weight_records.json)"
-```
-
-## 项目结构
+## 文件结构
 
 ```
-kaka/
-├── src/
-│   └── index.ts       # 主程序 (Hono + 前端)
-├── wrangler.toml      # Cloudflare 配置
-├── package.json       # Node 依赖
-└── README.md
+├── functions/
+│   ├── index.ts    # 前端页面
+│   └── api.ts      # API 接口
+├── wrangler.toml   # 部署配置（包含敏感信息）
+├── wrangler.toml.example  # 配置模板
+└── package.json
 ```
+
+## API
+
+- `GET /api?page=1` - 获取记录列表
+- `POST /api` - 添加记录（body: `{"date": "2024-01-01", "weight": 70.5}`)
+- `DELETE /api?id=xxx` - 删除记录
