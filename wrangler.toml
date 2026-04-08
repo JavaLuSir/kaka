@@ -1,0 +1,7 @@
+compatibility_date = "2024-01-01"
+name = "kaka-weight-tracker"
+pages_build_output_dir = "public"
+
+[[kv_namespaces]]
+binding = "WEIGHT_KV"
+id = "bd9e128bd55141e2be036a4f5d8f6ce8"
